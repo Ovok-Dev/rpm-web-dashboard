@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Patient } from "@medplum/fhirtypes";
-import type { OvokClient } from "@ovok/core";
 import { DEMO_PATIENTS } from "./data/demo";
 import { listProjectPatients, loadPatientReview } from "./lib/patientData";
 import { getOvokClient, tenantCode } from "./lib/ovokClient";
-import type { PageId, PatientChoice, PatientReview } from "./types";
+import type { PageId, PatientChoice, PatientReview, SignalsAlertView } from "./types";
 import AppShell from "./components/AppShell";
 import PatientReviewPage from "./components/PatientReviewPage";
 import PatientsPage from "./components/PatientsPage";
@@ -13,8 +12,7 @@ import SignInDialog from "./components/SignInDialog";
 import SupportPage from "./components/SupportPage";
 
 type WorkspaceMode = "demo" | "sandbox";
-type SignalsSettings = Awaited<ReturnType<OvokClient["getSignalsSettings"]>>;
-type RawSignal = Awaited<ReturnType<OvokClient["listSignalsRawAlerts"]>>["items"][number];
+const SIGNALS_ALERT_LIMIT = 20;
 
 const demoChoices: PatientChoice[] = DEMO_PATIENTS.map((patient) => ({
   id: patient.id,
@@ -34,9 +32,7 @@ export default function App() {
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [connectOpen, setConnectOpen] = useState(false);
-  const [signalsSettings, setSignalsSettings] = useState<SignalsSettings | null>(null);
-  const [rawSignals, setRawSignals] = useState<RawSignal[]>([]);
-  const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [rawSignals, setSignalsAlertViews] = useState<SignalsAlertView[]>([]);
   const [alertsError, setAlertsError] = useState<string | null>(null);
   const [signalsLoading, setSignalsLoading] = useState(false);
   const closeConnectDialog = useCallback(() => setConnectOpen(false), []);
@@ -90,51 +86,36 @@ export default function App() {
 
     let isCurrentRequest = true;
     setSignalsLoading(true);
-    setSettingsError(null);
     setAlertsError(null);
 
-    getOvokClient().then((client) => Promise.allSettled([
-      client.getSignalsSettings(),
-      client.listSignalsRawAlerts({ acknowledged: false, limit: 20 }),
-    ])).then(([settingsResult, alertsResult]) => {
-      if (!isCurrentRequest) return;
-
-      if (settingsResult.status === "fulfilled") {
-        setSignalsSettings(settingsResult.value);
-      } else {
-        setSignalsSettings(null);
-        setSettingsError(errorMessage(settingsResult.reason));
-      }
-
-      if (alertsResult.status === "fulfilled") {
-        setRawSignals(alertsResult.value.items);
-      } else {
-        setRawSignals([]);
-        setAlertsError(errorMessage(alertsResult.reason));
-      }
-
-      setSignalsLoading(false);
-    }).catch((error: unknown) => {
-      if (!isCurrentRequest) return;
-      setSettingsError(errorMessage(error));
-      setAlertsError(errorMessage(error));
-      setSignalsLoading(false);
-    });
+    getOvokClient()
+      .then((client) => client.signals.gateway.request<{ items: SignalsAlertView[] }>({
+        method: "GET",
+        path: ["alert"],
+        query: { page: 1, limit: SIGNALS_ALERT_LIMIT },
+      }))
+      .then((alerts) => {
+        if (isCurrentRequest) setSignalsAlertViews(alerts.items);
+      })
+      .catch((error: unknown) => {
+        if (!isCurrentRequest) return;
+        setSignalsAlertViews([]);
+        setAlertsError(errorMessage(error));
+      })
+      .finally(() => {
+        if (isCurrentRequest) setSignalsLoading(false);
+      });
 
     return () => {
       isCurrentRequest = false;
     };
   }, [mode, page]);
 
-  async function connectToSandbox(
-    login: Parameters<OvokClient["setActiveLogin"]>[0],
-  ): Promise<void> {
+  async function connectToSandbox(): Promise<void> {
     const client = await getOvokClient();
-    await client.setActiveLogin(login);
     setMode("sandbox");
     setPage("home");
-    setSignalsSettings(null);
-    setRawSignals([]);
+    setSignalsAlertViews([]);
     setWorkspaceError(null);
 
     try {
@@ -150,15 +131,14 @@ export default function App() {
 
   async function returnToDemo(): Promise<void> {
     const client = await getOvokClient();
-    await client.logout();
+    await client.auth.logout();
     setSandboxPatients([]);
     setSandboxReview(null);
     setSelectedPatientId(DEMO_PATIENTS[0]?.id ?? "");
     setMode("demo");
     setPage("home");
     setWorkspaceError(null);
-    setSignalsSettings(null);
-    setRawSignals([]);
+    setSignalsAlertViews([]);
   }
 
   const selectPatient = (patientId: string) => {
@@ -205,10 +185,8 @@ export default function App() {
         <SignalsPage
           mode={mode}
           tenantCode={tenantCode}
-          settings={signalsSettings}
           alerts={rawSignals}
           patients={patientChoices}
-          settingsError={settingsError}
           alertsError={alertsError}
           loading={signalsLoading}
           onConnect={() => setConnectOpen(true)}

@@ -1,4 +1,4 @@
-import type { OvokClient } from "@ovok/core";
+import type { Ovok } from "@ovok/core/next";
 
 export const apiBaseUrl =
   import.meta.env.VITE_OVOK_API_BASE_URL ?? "https://api.sandbox.ovok.com";
@@ -6,16 +6,17 @@ export const apiBaseUrl =
 export const tenantCode =
   import.meta.env.VITE_OVOK_TENANT_CODE ?? "public-example";
 
-let client: OvokClient | null = null;
+let client: Ovok | null = null;
 
-export async function getOvokClient(): Promise<OvokClient> {
+export async function getOvokClient(): Promise<Ovok> {
   if (client) return client;
 
-  const { OvokClient: OvokClientConstructor } = await import("@ovok/core");
-  client = new OvokClientConstructor({
+  const { Ovok: OvokConstructor } = await import("@ovok/core/next");
+  client = new OvokConstructor({
     baseUrl: apiBaseUrl,
-    fhirUrlPath: "/fhir/R4/",
-    requestTimeoutMs: 15000,
+    tenantCode,
+    fhirPath: "/fhir/R4/",
+    timeoutMs: 15000,
   });
   return client;
 }

@@ -1,7 +1,14 @@
-import { ObservationCode, type OvokClient } from "@ovok/core";
+import type { Ovok } from "@ovok/core/next";
 import type { Observation, Patient } from "@medplum/fhirtypes";
 import { describe, expect, it } from "vitest";
 import { loadPatientReview, readingKindForCodes } from "./patientData";
+
+const ObservationCode = {
+  BODY_WEIGHT: "29463-7",
+  ECG: "131328",
+  ECG_HEART_RATE: "8886-4",
+  BLOOD_GLUCOSE: "2340-8",
+};
 
 const patient: Patient = {
   resourceType: "Patient",
@@ -70,9 +77,11 @@ function ecgObservation(
 
 async function loadReview(observations: Observation[]) {
   const client = {
-    listPatientMeasurementHistory: async () => observations,
-    listPatientQuestionnaireResponses: async () => [],
-  } as unknown as OvokClient;
+    patient: {
+      measurements: { list: async () => observations },
+      questionnaireResponses: { list: async () => [] },
+    },
+  } as unknown as Ovok;
 
   return loadPatientReview(client, patient);
 }

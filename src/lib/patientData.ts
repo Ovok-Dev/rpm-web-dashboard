@@ -1,4 +1,4 @@
-import type { OvokClient } from "@ovok/core";
+import type { Ovok } from "@ovok/core/next";
 import type {
   Observation,
   Patient,
@@ -23,9 +23,9 @@ const BODY_WEIGHT_CODE = "29463-7";
 const ECG_CODE = "131328";
 
 export async function listProjectPatients(
-  client: OvokClient,
+  client: Ovok,
 ): Promise<Patient[]> {
-  const patients = await client.searchResources<"Patient">("Patient", {
+  const { data: patients } = await client.fhir.search("Patient", {
     _count: PAGE_SIZE,
     _sort: "family,given",
   });
@@ -33,17 +33,17 @@ export async function listProjectPatients(
 }
 
 export async function loadPatientReview(
-  client: OvokClient,
+  client: Ovok,
   patient: Patient,
 ): Promise<PatientReview> {
   const patientReference = `Patient/${patient.id}`;
   const [observations, responses] = await Promise.all([
-    client.listPatientMeasurementHistory({
+    client.patient.measurements.list({
       patient: patientReference,
       _sort: "-date",
       _count: PAGE_SIZE,
     }),
-    client.listPatientQuestionnaireResponses({
+    client.patient.questionnaireResponses.list({
       patient: patientReference,
       _sort: "-authored",
       _count: 10,

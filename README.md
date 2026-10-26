@@ -11,7 +11,7 @@
 
 A documentation example for reviewing a CHF remote-monitoring patient’s ECG, weight, questionnaire, recent activity, and Ovok Signals status. This is a companion to the [Ovok RPM mobile app](https://github.com/Ovok-Dev/rpm-mobile-app) and uses the Actimi [Ovok SDK](https://www.npmjs.com/package/@ovok/core).
 
-The app opens in a synthetic demo workspace. A clinician can connect to a single Ovok sandbox project to view its patient records and read-only Signals setup. It has no organizations, clinic switching, or Bluetooth pairing.
+The app opens in a synthetic demo workspace. A clinician can connect to a single Ovok sandbox project to view its patient records and read-only Signals alerts. It has no organizations, clinic switching, or Bluetooth pairing.
 
 > **Example only.** Demo records are synthetic. This application is not for clinical use and does not provide medical advice or clinical decision support. Verify your account, project, policies, devices, and applicable requirements before using any real data.
 
@@ -19,12 +19,12 @@ The app opens in a synthetic demo workspace. A clinician can connect to a single
 
 - **Patient review:** one patient’s latest ECG, body weight, and questionnaire response, with timestamps and source labels.
 - **Patients:** a searchable list limited to the current demo or project.
-- **Signals setup:** read-only project settings and unacknowledged raw alerts returned through `@ovok/core`.
+- **Signals setup:** read-only raw alerts returned through `@ovok/core`.
 - **Support:** Ovok documentation and the companion devices’ instructions for use (IFUs).
 - **Demo first:** five clearly synthetic patients work without an Ovok account.
 - **Sandbox sign-in:** practitioner password sign-in and MFA through the Ovok SDK.
 
-This dashboard reads records after they reach Ovok. The companion mobile app pairs supported devices and sends measurements to Ovok. Signals is accessed only through the Ovok SDK and APIs; the dashboard does not call the Signals service directly or change project settings or acknowledge alerts.
+This dashboard reads records after they reach Ovok. The companion mobile app pairs supported devices and sends measurements to Ovok. Signals is accessed only through the Ovok SDK and APIs; the dashboard does not call the Signals service directly or acknowledge alerts.
 
 ## Run locally
 
@@ -64,11 +64,11 @@ To try real sandbox records, an administrator needs to prepare one Ovok project 
 1. [Create or sign in to an Ovok account](https://ovok.com), then create a sandbox project. Keep this example scoped to that one project.
 2. Find the project’s tenant code and confirm practitioner login is enabled. Follow the [project setup guide](https://docs.ovok.com/authentication/project-setup) and [practitioner sign-in guide](https://docs.ovok.com/authentication/practitioner-login).
 3. Create or invite a practitioner in that project. Assign an AccessPolicy that allows only the patient and measurement reads the dashboard requires. Check the current [AccessPolicy documentation](https://docs.ovok.com/access-policies).
-4. Add the Signals read capabilities `signals_config:read` and `signals_alerts:read` to the practitioner policy. Patient read access still applies to patient-linked results. Use the exact custom rows and least-privilege rules in the [Signals access-policy guide](https://docs.ovok.com/access-policies/signals).
-5. Review the [Signals setup and architecture documentation](https://docs.ovok.com/signals) before relying on its project settings or alerts. This screen shows the project’s `episodicAlerts` setting as returned and does not change it.
+4. Add the Signals read capability `signals_alerts:read` to the practitioner policy. Patient read access still applies to patient-linked results. Use the exact custom rows and least-privilege rules in the [Signals access-policy guide](https://docs.ovok.com/access-policies/signals).
+5. Review the [Signals setup and architecture documentation](https://docs.ovok.com/signals) before relying on its alerts.
 6. Set `VITE_OVOK_TENANT_CODE` to the project tenant code if it differs from `public-example`, restart Vite, choose **Connect sandbox**, and sign in as the practitioner.
 
-The dashboard reads Patients, Observations, QuestionnaireResponses, Signals settings, and raw Signals alerts via `@ovok/core`. Missing permissions appear as request errors; sandbox data never silently falls back to the synthetic demo. The backend remains the authority for access checks and returned records.
+The dashboard reads Patients, Observations, QuestionnaireResponses, and raw Signals alerts via `@ovok/core`. Missing permissions appear as request errors; sandbox data never silently falls back to the synthetic demo. The backend remains the authority for access checks and returned records.
 
 Read the [Ovok web SDK docs](https://docs.ovok.com/web-sdk) and [`@ovok/core` API reference](https://docs.ovok.com/web-sdk/core) when extending integration code. Check the live docs before changing authentication, patient access, Signals behavior, or API calls.
 
