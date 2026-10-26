@@ -1,17 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, LockKeyhole, X } from "lucide-react";
-import type { OvokClient } from "@ovok/core";
+import type { MfaChallenge } from "@ovok/core/next";
 import { getOvokClient } from "../lib/ovokClient";
 
-type LoginResponse = Awaited<ReturnType<OvokClient["login"]>>;
-type PendingMfa = Extract<LoginResponse, { nextStep: "mfa" }>;
-type AuthenticatedLogin = Extract<LoginResponse, { accessToken: string }>;
 
 interface SignInDialogProps {
   open: boolean;
   tenantCode: string;
   onClose: () => void;
-  onAuthenticated: (login: AuthenticatedLogin) => Promise<void>;
+  onAuthenticated: () => Promise<void>;
 }
 
 export default function SignInDialog({
@@ -23,7 +20,7 @@ export default function SignInDialog({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
-  const [pendingMfa, setPendingMfa] = useState<PendingMfa | null>(null);
+  const [pendingMfa, setPendingMfa] = useState<MfaChallenge | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const emailRef = useRef<HTMLInputElement>(null);
@@ -59,19 +56,18 @@ export default function SignInDialog({
 
     try {
       const client = await getOvokClient();
-      const result = await client.login({
-        type: "Practitioner",
-        tenantCode,
+      const result = await client.auth.login({
+        profileType: "Practitioner",
         email: email.trim(),
         password,
       });
 
-      if ("nextStep" in result) {
-        setPendingMfa(result);
+      if (result.status === "mfa-required") {
+        setPendingMfa(result.challenge);
         return;
       }
 
-      await onAuthenticated(result);
+      await onAuthenticated();
       onClose();
     } catch (signInError) {
       setError(messageFor(signInError));
@@ -87,8 +83,9 @@ export default function SignInDialog({
     setError(null);
 
     try {
-      const authenticated = await pendingMfa.verify(verificationCode.trim());
-      await onAuthenticated(authenticated);
+      const client = await getOvokClient();
+      await client.auth.verifyMfa(pendingMfa, verificationCode.trim());
+      await onAuthenticated();
       onClose();
     } catch (verificationError) {
       setError(messageFor(verificationError));
