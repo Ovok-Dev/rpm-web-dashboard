@@ -92,7 +92,7 @@ export default function App() {
       .then((client) => client.signals.gateway.request<{ items: SignalsAlertView[] }>({
         method: "GET",
         path: ["alert"],
-        query: { page: 1, limit: SIGNALS_ALERT_LIMIT },
+        query: { acknowledged: false, page: 1, limit: SIGNALS_ALERT_LIMIT },
       }))
       .then((alerts) => {
         if (isCurrentRequest) setSignalsAlertViews(alerts.items);
